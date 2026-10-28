@@ -48,3 +48,6 @@ python3 scripts/article_loop.py content/foo.md /tmp/out --rounds 3
 
 - `GEMINI_API_KEY` を環境変数に入れておく。依存ライブラリなし(標準ライブラリで REST を叩く)
 - 記事モードの既定の校閲は `claude` CLI を使うため、Claude Code が動く環境が必要。`REWRITE_CHECKER_CMD` で別の校閲に差し替えられる
+
+## エラー時の挙動
+HTTP 429/500/503 は 2・4・8・16 秒(+ゆらぎ)待って最大4回リトライし、経過を stderr に出す。gemini_rewrite.py は既定モデルで尽きたら `GEMINI_REWRITE_FALLBACK`（既定 gemini-3.7-flash）に1度切り替える。キーはログに出さない。
