@@ -4,7 +4,7 @@
 usage: article_loop.py <article.md> <outdir> [--rounds 3] [--sections 2,3] [--model gemini-3.8-flash] [--tone standard|casual]
 --tone casual: 原文ベースの最小書き換えで、ほんの少しだけくだけさせる(SNS長文記事・個人ブログ向け)。frontmatter は任意。
 出力: <outdir>/final.md(frontmatter込み)、s{NN}-r{N}.md、s{NN}-r{N}-issues.json、log.json
-環境変数: GEMINI_API_KEY(必須)、GEMINI_REWRITE_MODEL、REWRITE_CHECKER_CMD(校閲コマンド。既定は claude CLI)。"""
+環境変数: GEMINI_REWRITE_BACKEND(auto/cli/api)、GEMINI_API_KEY(API を使うとき)、GEMINI_REWRITE_MODEL、REWRITE_CHECKER_CMD(校閲コマンド。既定は claude CLI)。"""
 import random, argparse, json, os, re, subprocess, sys, urllib.request, pathlib, time
 
 GEMINI_SYS = """あなたは日本語の技術記事の編集者です。以下の Markdown の節を、内容と順序と主張を一切変えずに、人間の書き手が書いたような自然で読みやすい日本語へ書き直してください。
@@ -48,21 +48,14 @@ CHECK_SYS = """あなたは技術記事の校閲者です。原文と書き換�
 問題がなければ {"issues":[]}。"""
 
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gemini_backend import add_backend_arg, generate
+
+BACKEND = "auto"
+
+
 def gemini(prompt, model):
-    key = os.environ.get("GEMINI_API_KEY") or sys.exit("GEMINI_API_KEY が未設定")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-    body = json.dumps({"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.4}}).encode()
-    for i in range(5):
-        try:
-            r = urllib.request.urlopen(urllib.request.Request(url, body, {"Content-Type": "application/json"}), timeout=180)
-            return json.load(r)["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except Exception as e:
-            code = getattr(e, "code", None)
-            if i == 4 or (code is not None and code not in (429, 500, 503)):
-                raise
-            wait = 2 ** (i + 1) + random.uniform(0, 1)
-            print(f"[article_loop] {model}: {code or type(e).__name__}、{wait:.0f}秒後に再試行 ({i+1}/4)", file=sys.stderr)
-            time.sleep(wait)
+    return generate(prompt, model, BACKEND, temperature=0.4)
 
 
 CHECKER_CMD = os.environ.get("REWRITE_CHECKER_CMD", "claude -p --model sonnet --output-format text --tools \"\"")
@@ -131,7 +124,10 @@ def main():
     ap.add_argument("--model", default=os.environ.get("GEMINI_REWRITE_MODEL", "gemini-3.8-flash"))
     ap.add_argument("--banned", default="", help="禁止語リスト(JSON配列ファイル)。既定はスクリプト内の BANNED")
     ap.add_argument("--tone", choices=sorted(TONES), default="standard")
+    add_backend_arg(ap)
     a = ap.parse_args()
+    global BACKEND
+    BACKEND = a.backend
     sys_prompt = GEMINI_SYS.replace("{tone}", TONES[a.tone])
     if a.banned:
         BANNED[:] = json.load(open(a.banned))

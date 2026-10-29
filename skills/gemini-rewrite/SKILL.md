@@ -46,8 +46,20 @@ python3 scripts/article_loop.py content/foo.md /tmp/out --rounds 3
 
 ## 前提
 
-- `GEMINI_API_KEY` を環境変数に入れておく。依存ライブラリなし(標準ライブラリで REST を叩く)
+呼び出し先は2つ。既定(`--backend auto`)は Antigravity CLI を先に使い、使えなければ Gemini API に切り替える。
+
+- Antigravity CLI(APIキー不要。おすすめ)
+  - 初回だけインストール: `curl -fsSL https://antigravity.google/cli/install.sh | bash -s -- -d ~/.local/bin`
+  - 初回だけログイン: `~/.local/bin/agy` を起動し「Google OAuth」を選んでブラウザでログイン。表示されたコードをターミナルに貼る。データ提供のチェック欄は空欄のまま Done でよい
+  - スクリプトはフルパス `~/.local/bin/agy`(なければ PATH 上の agy)を使うので、PATH 設定は不要。エディタ付属の agy は `agy models` が通らないため自動で除外される
+  - 無料枠・Pro 枠とも上限は週単位で、量は公開されていない。上限に当たったら API に切り替わる
+  - モデル名は CLI 側の名前へ寄せる(`gemini-3.8-flash` → `gemini-3.8-flash-medium`)。一覧は `~/.local/bin/agy models`
+- Gemini API(予備): `GEMINI_API_KEY` を環境変数に入れておく。依存ライブラリなし(標準ライブラリで REST を叩く)
+- 切り替え: `--backend auto|cli|api`、または環境変数 `GEMINI_REWRITE_BACKEND`。CLI のタイムアウトは `GEMINI_REWRITE_CLI_TIMEOUT`(既定 3m)
 - 記事モードの既定の校閲は `claude` CLI を使うため、Claude Code が動く環境が必要。`REWRITE_CHECKER_CMD` で別の校閲に差し替えられる
+- claude.ai やクラウドの Claude Code では、Mac の CLI もキーも見えないので動かない。ローカルの Claude Code で使う
 
 ## エラー時の挙動
-HTTP 429/500/503 は 2・4・8・16 秒(+ゆらぎ)待って最大4回リトライし、経過を stderr に出す。gemini_rewrite.py は既定モデルで尽きたら `GEMINI_REWRITE_FALLBACK`（既定 gemini-3.7-flash）に1度切り替える。キーはログに出さない。
+CLI が見つからない・未ログイン・上限・タイムアウト・空の出力のときは、auto なら API に切り替える(stderr に理由を出す)。CLI もキーもなければ日本語のエラーで止まる。
+
+API では HTTP 429/500/503 は 2・4・8・16 秒(+ゆらぎ)待って最大4回リトライし、経過を stderr に出す。gemini_rewrite.py は既定モデルで尽きたら `GEMINI_REWRITE_FALLBACK`（既定 gemini-3.7-flash）に1度切り替える。キーはログに出さない。

@@ -122,4 +122,4 @@ MIT License。詳細は `LICENSE` を参照。
 
 ### gemini-rewrite（Gemini 書き換え）
 
-書き手を Gemini、校閲を Claude に分ける。記事モードは h2 節ごとに「Gemini 書き換え → 機械チェック + 意味照合 → 指摘を戻して再書き換え」を最大3周回し、`final.md` を出す。意味照合は実害のある差だけを指摘する緩い設定にしてある。厳しくすると原文に引き戻されて文体が変わらない。詳細は `skills/gemini-rewrite/SKILL.md`。
+書き手を Gemini、校閲を Claude に分ける。記事モードは h2 節ごとに「Gemini 書き換え → 機械チェック + 意味照合 → 指摘を戻して再書き換え」を最大3周回し、`final.md` を出す。意味照合は実害のある差だけを指摘する緩い設定にしてある。厳しくすると原文に引き戻されて文体が変わらない。呼び出し先は既定で Antigravity CLI(APIキー不要、初回に `~/.local/bin/agy` で Google ログイン)、使えなければ `GEMINI_API_KEY` の API。詳細は `skills/gemini-rewrite/SKILL.md`。
